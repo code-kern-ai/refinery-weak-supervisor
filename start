@@ -1,0 +1,24 @@
+#!/bin/bash
+trap "echo -ne '\nstopping container...' && docker stop refinery-weak-supervisor > /dev/null 2>&1 && echo -ne '\t\t [done]\n'" EXIT
+
+echo -ne 'stopping old container...'
+docker stop refinery-weak-supervisor > /dev/null 2>&1
+echo -ne '\t [done]\n'
+
+echo -ne 'building container...'
+docker build -t refinery-weak-supervisor-dev -f dev.Dockerfile . > /dev/null 2>&1
+echo -ne '\t\t [done]\n'
+
+echo -ne 'starting...'
+docker run -d --rm \
+--name refinery-weak-supervisor \
+-p 7054:80 \
+-e POSTGRES=postgresql://postgres:onetask@graphql-postgres:5432 \
+-e WS_NOTIFY_ENDPOINT="http://ws-notify:8080" \
+--mount type=bind,source="$(pwd)"/,target=/app \
+-v /var/run/docker.sock:/var/run/docker.sock \
+--network dev-setup_default \
+refinery-weak-supervisor-dev > /dev/null 2>&1
+echo -ne '\t\t\t [done]\n'
+
+docker logs -f refinery-weak-supervisor
