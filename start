@@ -14,7 +14,7 @@ docker run -d --rm \
 --name refinery-weak-supervisor \
 -p 7054:80 \
 -e POSTGRES=postgresql://postgres:onetask@graphql-postgres:5432 \
--e WS_NOTIFY_ENDPOINT="http://ws-notify:8080" \
+-e WS_NOTIFY_ENDPOINT="http://refinery-websocket:8080" \
 --mount type=bind,source="$(pwd)"/,target=/app \
 -v /var/run/docker.sock:/var/run/docker.sock \
 --network dev-setup_default \
