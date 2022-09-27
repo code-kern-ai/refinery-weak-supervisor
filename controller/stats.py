@@ -224,12 +224,9 @@ def classification_quality(df: pd.DataFrame) -> Dict[str, Dict[str, Dict[str, in
 
 
 def extraction_quality(df: pd.DataFrame) -> Dict[str, Dict[str, Dict[str, int]]]:
-    # print(df, flush=True)
 
     enlm = util.get_enlm_from_df(df)
     quality_df = enlm.quality_metrics()
-    print(quality_df, flush=True)
-    print(enlm.errors, flush=True)
     stats = {}
     if len(quality_df) > 0:
         for source_id, quality_df_sub_source in quality_df.groupby("identifier"):
