@@ -11,6 +11,7 @@ from submodules.model.business_objects import (
     labeling_task,
     notification,
     project,
+    user,
 )
 import weak_nlp
 
@@ -50,35 +51,44 @@ def send_organization_update(
 
 
 def send_warning_no_reference_data(project_id: str, user_id: str):
-    notification.create(
-        project_id,
-        user_id,
-        "You have no labeled data. Can't compute true positive-related statistics.",
-        "WARNING",
-        enums.NotificationType.MISSING_REFERENCE_DATA.value,
-        with_commit=True,
-    )
-    organization_id = get_organization_id(project_id, user_id)
-    if organization_id:
-        send_organization_update(
-            project_id, f"notification_created:{user_id}", True, organization_id
+    if check_user_can_receive_notifications(user_id):
+        notification.create(
+            project_id,
+            user_id,
+            "You have no labeled data. Can't compute true positive-related statistics.",
+            "WARNING",
+            enums.NotificationType.MISSING_REFERENCE_DATA.value,
+            with_commit=True,
         )
+        organization_id = get_organization_id(project_id, user_id)
+        if organization_id:
+            send_organization_update(
+                project_id, f"notification_created:{user_id}", True, organization_id
+            )
 
 
 def send_warning_no_coverage_data(project_id: str, user_id: str):
-    notification.create(
-        project_id,
-        user_id,
-        "Your heuristics hits no records in the project. Can't compute statistics.",
-        "WARNING",
-        enums.NotificationType.MISSING_REFERENCE_DATA.value,
-        with_commit=True,
-    )
-    organization_id = get_organization_id(project_id, user_id)
-    if organization_id:
-        send_organization_update(
-            project_id, f"notification_created:{user_id}", True, organization_id
+    if check_user_can_receive_notifications(user_id):
+        notification.create(
+            project_id,
+            user_id,
+            "Your heuristics hits no records in the project. Can't compute statistics.",
+            "WARNING",
+            enums.NotificationType.MISSING_REFERENCE_DATA.value,
+            with_commit=True,
         )
+        organization_id = get_organization_id(project_id, user_id)
+        if organization_id:
+            send_organization_update(
+                project_id, f"notification_created:{user_id}", True, organization_id
+            )
+
+
+def check_user_can_receive_notifications(user_id: str) -> bool:
+    user_item = user.get(user_id)
+    if user_item.role == enums.UserRoles.ENGINEER.value:
+        return True
+    return False
 
 
 def calculate_quality_statistics_for_labeling_task(
@@ -214,8 +224,12 @@ def classification_quality(df: pd.DataFrame) -> Dict[str, Dict[str, Dict[str, in
 
 
 def extraction_quality(df: pd.DataFrame) -> Dict[str, Dict[str, Dict[str, int]]]:
+    # print(df, flush=True)
+
     enlm = util.get_enlm_from_df(df)
     quality_df = enlm.quality_metrics()
+    print(quality_df, flush=True)
+    print(enlm.errors, flush=True)
     stats = {}
     if len(quality_df) > 0:
         for source_id, quality_df_sub_source in quality_df.groupby("identifier"):
