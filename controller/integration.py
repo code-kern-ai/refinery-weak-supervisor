@@ -1,6 +1,8 @@
+import os
 from typing import Any, Dict, List, Tuple
 import traceback
 import pandas as pd
+import pickle
 from collections import defaultdict
 
 from submodules.model.models import (
@@ -25,7 +27,8 @@ def fit_predict(
     task_type, df = collect_data(project_id, labeling_task_id, True)
     try:
         if task_type == enums.LabelingTaskType.CLASSIFICATION.value:
-            results = integrate_classification(df)
+            results = integrate_classification(project_id, labeling_task_id, df)
+
         else:
             results = integrate_extraction(df)
         weak_supervision.store_data(
@@ -48,9 +51,23 @@ def fit_predict(
         )
 
 
-def integrate_classification(df: pd.DataFrame):
+def integrate_classification(project_id: str, labeling_task_id: str, df: pd.DataFrame):
     cnlm = util.get_cnlm_from_df(df)
     weak_supervision_results = cnlm.weakly_supervise()
+
+    with open(
+        os.path.join(
+            "/inference", project_id, f"weak-supervision-{labeling_task_id}.pkl"
+        ),
+        "wb",
+    ) as f:
+        stats_df = cnlm.quality_metrics()
+        if len(stats_df) != 0:
+            stats_lkp = stats_df.set_index(["identifier", "label_name"]).to_dict(
+                orient="index"
+            )
+            pickle.dump(stats_lkp, f)
+
     return_values = defaultdict(list)
     for record_id, (
         label_id,

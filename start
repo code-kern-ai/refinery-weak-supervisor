@@ -5,6 +5,20 @@ echo -ne 'stopping old container...'
 docker stop refinery-weak-supervisor > /dev/null 2>&1
 echo -ne '\t [done]\n'
 
+INFERENCE_DIR=${PWD%/*}/dev-setup/inference/
+if [ ! -d "$_DIR" ] 
+then
+    INFERENCE_DIR=${PWD%/*/*}/dev-setup/inference/
+    if [ ! -d "$INFERENCE_DIR" ] 
+    then
+        # to include volume for local development, use the dev-setup model data folder:  
+        # alternative use manual logic with
+        # -v /path/to/dev-setup/model-data:/models \
+        echo "Can't find model data directory: $INFERENCE_DIR -> stopping" 
+        exit 1
+    fi
+fi
+
 echo -ne 'building container...'
 docker build -t refinery-weak-supervisor-dev -f dev.Dockerfile . > /dev/null 2>&1
 echo -ne '\t\t [done]\n'
@@ -17,6 +31,7 @@ docker run -d --rm \
 -e WS_NOTIFY_ENDPOINT="http://refinery-websocket:8080" \
 --mount type=bind,source="$(pwd)"/,target=/app \
 -v /var/run/docker.sock:/var/run/docker.sock \
+-v "$INFERENCE_DIR":/inference \
 --network dev-setup_default \
 refinery-weak-supervisor-dev > /dev/null 2>&1
 echo -ne '\t\t\t [done]\n'
