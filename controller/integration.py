@@ -27,7 +27,7 @@ def fit_predict(
     task_type, df = collect_data(project_id, labeling_task_id, True)
     try:
         if task_type == enums.LabelingTaskType.CLASSIFICATION.value:
-            results = integrate_classification(project_id, labeling_task_id, df)
+            results = integrate_classification(df)
 
         else:
             results = integrate_extraction(df)
@@ -40,7 +40,7 @@ def fit_predict(
             weak_supervision_task_id,
             with_commit=True,
         )
-    except:
+    except Exception:
         print(traceback.format_exc(), flush=True)
         general.rollback()
         weak_supervision.update_state(
@@ -51,23 +51,42 @@ def fit_predict(
         )
 
 
-def integrate_classification(project_id: str, labeling_task_id: str, df: pd.DataFrame):
+def export_weak_supervision_stats(
+    project_id: str, labeling_task_id: str
+) -> Tuple[int, str]:
+
+    task_type, df = collect_data(project_id, labeling_task_id, False)
+    try:
+        if task_type == enums.LabelingTaskType.CLASSIFICATION.value:
+            cnlm = util.get_cnlm_from_df(df)
+            stats_df = cnlm.quality_metrics()
+            if len(stats_df) != 0:
+                stats_lkp = stats_df.set_index(["identifier", "label_name"]).to_dict(
+                    orient="index"
+                )
+            else:
+                return 404, "Can't compute weak supervision"
+
+            os.makedirs(os.path.join("/inference", project_id), exist_ok=True)
+            with open(
+                os.path.join(
+                    "/inference", project_id, f"weak-supervision-{labeling_task_id}.pkl"
+                ),
+                "wb",
+            ) as f:
+                pickle.dump(stats_lkp, f)
+        else:
+            return 404, f"Task type {task_type} not implemented"
+    except Exception:
+        print(traceback.format_exc(), flush=True)
+        general.rollback()
+        return 500, "Internal server error"
+    return 200, "OK"
+
+
+def integrate_classification(df: pd.DataFrame):
     cnlm = util.get_cnlm_from_df(df)
     weak_supervision_results = cnlm.weakly_supervise()
-
-    with open(
-        os.path.join(
-            "/inference", project_id, f"weak-supervision-{labeling_task_id}.pkl"
-        ),
-        "wb",
-    ) as f:
-        stats_df = cnlm.quality_metrics()
-        if len(stats_df) != 0:
-            stats_lkp = stats_df.set_index(["identifier", "label_name"]).to_dict(
-                orient="index"
-            )
-            pickle.dump(stats_lkp, f)
-
     return_values = defaultdict(list)
     for record_id, (
         label_id,
