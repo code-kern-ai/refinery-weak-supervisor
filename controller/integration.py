@@ -60,23 +60,28 @@ def export_weak_supervision_stats(
         if task_type == enums.LabelingTaskType.CLASSIFICATION.value:
             cnlm = util.get_cnlm_from_df(df)
             stats_df = cnlm.quality_metrics()
-            if len(stats_df) != 0:
-                stats_lkp = stats_df.set_index(["identifier", "label_name"]).to_dict(
-                    orient="index"
-                )
-            else:
-                return 404, "Can't compute weak supervision"
-
-            os.makedirs(os.path.join("/inference", project_id), exist_ok=True)
-            with open(
-                os.path.join(
-                    "/inference", project_id, f"weak-supervision-{labeling_task_id}.pkl"
-                ),
-                "wb",
-            ) as f:
-                pickle.dump(stats_lkp, f)
+        elif task_type == enums.LabelingTaskType.INFORMATION_EXTRACTION.value:
+            enlm = util.get_enlm_from_df(df)
+            stats_df = enlm.quality_metrics()
         else:
             return 404, f"Task type {task_type} not implemented"
+
+        if len(stats_df) != 0:
+            stats_lkp = stats_df.set_index(["identifier", "label_name"]).to_dict(
+                orient="index"
+            )
+        else:
+            return 404, "Can't compute weak supervision"
+
+        os.makedirs(os.path.join("/inference", project_id), exist_ok=True)
+        with open(
+            os.path.join(
+                "/inference", project_id, f"weak-supervision-{labeling_task_id}.pkl"
+            ),
+            "wb",
+        ) as f:
+            pickle.dump(stats_lkp, f)
+
     except Exception:
         print(traceback.format_exc(), flush=True)
         general.rollback()
