@@ -1,6 +1,8 @@
+import os
 from typing import Any, Dict, List, Tuple
 import traceback
 import pandas as pd
+import pickle
 from collections import defaultdict
 
 from submodules.model.models import (
@@ -26,6 +28,7 @@ def fit_predict(
     try:
         if task_type == enums.LabelingTaskType.CLASSIFICATION.value:
             results = integrate_classification(df)
+
         else:
             results = integrate_extraction(df)
         weak_supervision.store_data(
@@ -37,7 +40,7 @@ def fit_predict(
             weak_supervision_task_id,
             with_commit=True,
         )
-    except:
+    except Exception:
         print(traceback.format_exc(), flush=True)
         general.rollback()
         weak_supervision.update_state(
@@ -46,6 +49,44 @@ def fit_predict(
             enums.PayloadState.FAILED.value,
             with_commit=True,
         )
+
+
+def export_weak_supervision_stats(
+    project_id: str, labeling_task_id: str
+) -> Tuple[int, str]:
+
+    task_type, df = collect_data(project_id, labeling_task_id, False)
+    try:
+        if task_type == enums.LabelingTaskType.CLASSIFICATION.value:
+            cnlm = util.get_cnlm_from_df(df)
+            stats_df = cnlm.quality_metrics()
+        elif task_type == enums.LabelingTaskType.INFORMATION_EXTRACTION.value:
+            enlm = util.get_enlm_from_df(df)
+            stats_df = enlm.quality_metrics()
+        else:
+            return 404, f"Task type {task_type} not implemented"
+
+        if len(stats_df) != 0:
+            stats_lkp = stats_df.set_index(["identifier", "label_name"]).to_dict(
+                orient="index"
+            )
+        else:
+            return 404, "Can't compute weak supervision"
+
+        os.makedirs(os.path.join("/inference", project_id), exist_ok=True)
+        with open(
+            os.path.join(
+                "/inference", project_id, f"weak-supervision-{labeling_task_id}.pkl"
+            ),
+            "wb",
+        ) as f:
+            pickle.dump(stats_lkp, f)
+
+    except Exception:
+        print(traceback.format_exc(), flush=True)
+        general.rollback()
+        return 500, "Internal server error"
+    return 200, "OK"
 
 
 def integrate_classification(df: pd.DataFrame):
