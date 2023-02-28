@@ -96,7 +96,7 @@ def integrate_classification(df: pd.DataFrame):
     for record_id, (
         label_id,
         confidence,
-    ) in weak_supervision_results.dropna().iteritems():
+    ) in weak_supervision_results.dropna().items():
         return_values[record_id].append(
             {"label_id": label_id, "confidence": confidence}
         )
@@ -107,7 +107,7 @@ def integrate_extraction(df: pd.DataFrame):
     enlm = util.get_enlm_from_df(df)
     weak_supervision_results = enlm.weakly_supervise()
     return_values = defaultdict(list)
-    for record_id, preds in weak_supervision_results.iteritems():
+    for record_id, preds in weak_supervision_results.items():
         for pred in preds:
             label, confidence, token_min, token_max = pred
             return_values[record_id].append(
