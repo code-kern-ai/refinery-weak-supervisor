@@ -87,3 +87,12 @@ async def export_ws_stats(request: ExportWsStatsRequest) -> responses.PlainTextR
     if status_code != 200:
         raise HTTPException(status_code=status_code, detail=message)
     return responses.PlainTextResponse(status_code=status_code)
+
+
+@app.get("/healthcheck")
+def healthcheck() -> responses.PlainTextResponse:
+    headers = {"APP": "OK"}
+    database_test = general.test_database_connection()
+    if not database_test.get("success"):
+        headers["DATABASE"] = database_test.get("error")
+    return responses.PlainTextResponse("OK", headers=headers)
