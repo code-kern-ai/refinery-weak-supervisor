@@ -34,7 +34,7 @@ class ExportWsStatsRequest(BaseModel):
 
 
 @app.post("/fit_predict")
-async def weakly_supervise(
+def weakly_supervise(
     request: WeakSupervisionRequest,
 ) -> responses.PlainTextResponse:
     session_token = general.get_ctx_token()
@@ -49,7 +49,7 @@ async def weakly_supervise(
 
 
 @app.post("/labeling_task_statistics")
-async def calculate_task_stats(
+def calculate_task_stats(
     request: TaskStatsRequest,
 ) -> responses.PlainTextResponse:
     session_token = general.get_ctx_token()
@@ -61,7 +61,7 @@ async def calculate_task_stats(
 
 
 @app.post("/source_statistics")
-async def calculate_source_stats(
+def calculate_source_stats(
     request: SourceStatsRequest,
 ) -> responses.PlainTextResponse:
     session_token = general.get_ctx_token()
@@ -77,7 +77,7 @@ async def calculate_source_stats(
 
 
 @app.post("/export_ws_stats")
-async def export_ws_stats(request: ExportWsStatsRequest) -> responses.PlainTextResponse:
+def export_ws_stats(request: ExportWsStatsRequest) -> responses.PlainTextResponse:
     session_token = general.get_ctx_token()
     status_code, message = integration.export_weak_supervision_stats(
         request.project_id, request.labeling_task_id
