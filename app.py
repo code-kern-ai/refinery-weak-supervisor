@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, responses, status
 from pydantic import BaseModel
+from typing import Union, Dict, Optional
 
 from controller import stats
 from controller import integration
@@ -14,6 +15,7 @@ class WeakSupervisionRequest(BaseModel):
     labeling_task_id: str
     user_id: str
     weak_supervision_task_id: str
+    overwrite_weak_supervision: Optional[Union[float, Dict[str, float]]]
 
 
 class TaskStatsRequest(BaseModel):
@@ -31,6 +33,7 @@ class SourceStatsRequest(BaseModel):
 class ExportWsStatsRequest(BaseModel):
     project_id: str
     labeling_task_id: str
+    overwrite_weak_supervision: Optional[Union[float, Dict[str, float]]]
 
 
 @app.post("/fit_predict")
@@ -43,6 +46,7 @@ def weakly_supervise(
         request.labeling_task_id,
         request.user_id,
         request.weak_supervision_task_id,
+        request.overwrite_weak_supervision,
     )
     general.remove_and_refresh_session(session_token)
     return responses.PlainTextResponse(status_code=status.HTTP_200_OK)
@@ -80,7 +84,7 @@ def calculate_source_stats(
 def export_ws_stats(request: ExportWsStatsRequest) -> responses.PlainTextResponse:
     session_token = general.get_ctx_token()
     status_code, message = integration.export_weak_supervision_stats(
-        request.project_id, request.labeling_task_id
+        request.project_id, request.labeling_task_id, request.overwrite_weak_supervision
     )
     general.remove_and_refresh_session(session_token)
 
