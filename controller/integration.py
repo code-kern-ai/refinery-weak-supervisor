@@ -159,9 +159,9 @@ def integrate_classification(df: pd.DataFrame, stats_lkp: Dict[Any, Any] = None)
     return return_values
 
 
-def integrate_extraction(df: pd.DataFrame):
+def integrate_extraction(df: pd.DataFrame, stats_lkp: Dict[Any, Any] = None):
     enlm = util.get_enlm_from_df(df)
-    weak_supervision_results = enlm.weakly_supervise()
+    weak_supervision_results = enlm.weakly_supervise(stats_lkp)
     return_values = defaultdict(list)
     for record_id, preds in weak_supervision_results.items():
         for pred in preds:
