@@ -61,7 +61,7 @@ def fit_predict(
         stats_lkp = __create_stats_lkp(
             project_id, labeling_task_id, overwrite_weak_supervision
         )
-    elif not record_label_association.is_any_record_manually_labeled_by_lt_id(
+    elif not record_label_association.is_any_record_manually_labeled(
         project_id, labeling_task_id
     ):
         stats_lkp = __create_stats_lkp(
@@ -103,7 +103,7 @@ def export_weak_supervision_stats(
         ws_stats = __create_stats_lkp(
             project_id, labeling_task_id, overwrite_weak_supervision
         )
-    elif not record_label_association.is_any_record_manually_labeled_by_lt_id(
+    elif not record_label_association.is_any_record_manually_labeled(
         project_id, labeling_task_id
     ):
         ws_stats = __create_stats_lkp(
