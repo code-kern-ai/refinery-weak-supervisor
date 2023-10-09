@@ -25,7 +25,7 @@ from submodules.model.business_objects import (
 NO_LABEL_WS_PRECISION = 0.8
 
 
-def __create_stats_lkp(
+def __create_quality_metrics(
     project_id: str,
     labeling_task_id: str,
     overwrite_weak_supervision: Union[float, Dict[str, float]],
@@ -56,24 +56,24 @@ def fit_predict(
     weak_supervision_task_id: str,
     overwrite_weak_supervision: Optional[Dict[Any, Any]] = None,
 ):
-    stats_lkp = None
+    quality_metrics_overwrite = None
     if overwrite_weak_supervision is not None:
-        stats_lkp = __create_stats_lkp(
+        quality_metrics_overwrite = __create_quality_metrics(
             project_id, labeling_task_id, overwrite_weak_supervision
         )
     elif not record_label_association.is_any_record_manually_labeled(
         project_id, labeling_task_id
     ):
-        stats_lkp = __create_stats_lkp(
+        quality_metrics_overwrite = __create_quality_metrics(
             project_id, labeling_task_id, NO_LABEL_WS_PRECISION
         )
 
     task_type, df = collect_data(project_id, labeling_task_id, True)
     try:
         if task_type == enums.LabelingTaskType.CLASSIFICATION.value:
-            results = integrate_classification(df, stats_lkp)
+            results = integrate_classification(df, quality_metrics_overwrite)
         else:
-            results = integrate_extraction(df, stats_lkp)
+            results = integrate_extraction(df, quality_metrics_overwrite)
         weak_supervision.store_data(
             project_id,
             labeling_task_id,
@@ -100,13 +100,13 @@ def export_weak_supervision_stats(
     overwrite_weak_supervision: Optional[Union[float, Dict[str, float]]] = None,
 ) -> Tuple[int, str]:
     if overwrite_weak_supervision is not None:
-        ws_stats = __create_stats_lkp(
+        ws_stats = __create_quality_metrics(
             project_id, labeling_task_id, overwrite_weak_supervision
         )
     elif not record_label_association.is_any_record_manually_labeled(
         project_id, labeling_task_id
     ):
-        ws_stats = __create_stats_lkp(
+        ws_stats = __create_quality_metrics(
             project_id, labeling_task_id, NO_LABEL_WS_PRECISION
         )
     else:
@@ -145,9 +145,11 @@ def export_weak_supervision_stats(
     return 200, "OK"
 
 
-def integrate_classification(df: pd.DataFrame, stats_lkp: Dict[Any, Any] = None):
+def integrate_classification(
+    df: pd.DataFrame, quality_metrics_overwrite: Dict[Any, Any] = None
+):
     cnlm = util.get_cnlm_from_df(df)
-    weak_supervision_results = cnlm.weakly_supervise(stats_lkp)
+    weak_supervision_results = cnlm.weakly_supervise(quality_metrics_overwrite)
     return_values = defaultdict(list)
     for record_id, (
         label_id,
@@ -159,9 +161,11 @@ def integrate_classification(df: pd.DataFrame, stats_lkp: Dict[Any, Any] = None)
     return return_values
 
 
-def integrate_extraction(df: pd.DataFrame, stats_lkp: Dict[Any, Any] = None):
+def integrate_extraction(
+    df: pd.DataFrame, quality_metrics_overwrite: Dict[Any, Any] = None
+):
     enlm = util.get_enlm_from_df(df)
-    weak_supervision_results = enlm.weakly_supervise(stats_lkp)
+    weak_supervision_results = enlm.weakly_supervise(quality_metrics_overwrite)
     return_values = defaultdict(list)
     for record_id, preds in weak_supervision_results.items():
         for pred in preds:
