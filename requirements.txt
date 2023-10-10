@@ -107,5 +107,5 @@ urllib3==1.26.16
     #   requests
 uvicorn==0.22.0
     # via -r requirements/common-requirements.txt
-weak-nlp==0.0.12
+weak-nlp==0.0.13
     # via -r requirements/requirements.in

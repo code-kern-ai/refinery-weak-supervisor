@@ -1,2 +1,2 @@
 -r common-requirements.txt
-weak-nlp==0.0.12
+weak-nlp==0.0.13
