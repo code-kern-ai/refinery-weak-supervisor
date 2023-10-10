@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional, Union
 import traceback
 import pandas as pd
 import pickle
@@ -18,19 +18,62 @@ from submodules.model.business_objects import (
     labeling_task,
     record_label_association,
     weak_supervision,
+    labeling_task_label,
+    information_source,
 )
+
+NO_LABEL_WS_PRECISION = 0.8
+
+
+def __create_quality_metrics(
+    project_id: str,
+    labeling_task_id: str,
+    overwrite_weak_supervision: Union[float, Dict[str, float]],
+) -> Dict[Tuple[str, str], Dict[str, float]]:
+    if isinstance(overwrite_weak_supervision, float):
+        ws_weights = {}
+        for heuristic_id in information_source.get_all_ids_by_labeling_task_id(
+            project_id, labeling_task_id
+        ):
+            ws_weights[str(heuristic_id)] = overwrite_weak_supervision
+    else:
+        ws_weights = overwrite_weak_supervision
+
+    ws_stats = {}
+    for heuristic_id in ws_weights:
+        label_ids = labeling_task_label.get_all_ids(project_id, labeling_task_id)
+        for (label_id,) in label_ids:
+            ws_stats[(heuristic_id, str(label_id))] = {
+                "precision": ws_weights[heuristic_id]
+            }
+    return ws_stats
 
 
 def fit_predict(
-    project_id: str, labeling_task_id: str, user_id: str, weak_supervision_task_id: str
+    project_id: str,
+    labeling_task_id: str,
+    user_id: str,
+    weak_supervision_task_id: str,
+    overwrite_weak_supervision: Optional[Union[float, Dict[str, float]]] = None,
 ):
+    quality_metrics_overwrite = None
+    if overwrite_weak_supervision is not None:
+        quality_metrics_overwrite = __create_quality_metrics(
+            project_id, labeling_task_id, overwrite_weak_supervision
+        )
+    elif not record_label_association.is_any_record_manually_labeled(
+        project_id, labeling_task_id
+    ):
+        quality_metrics_overwrite = __create_quality_metrics(
+            project_id, labeling_task_id, NO_LABEL_WS_PRECISION
+        )
+
     task_type, df = collect_data(project_id, labeling_task_id, True)
     try:
         if task_type == enums.LabelingTaskType.CLASSIFICATION.value:
-            results = integrate_classification(df)
-
+            results = integrate_classification(df, quality_metrics_overwrite)
         else:
-            results = integrate_extraction(df)
+            results = integrate_extraction(df, quality_metrics_overwrite)
         weak_supervision.store_data(
             project_id,
             labeling_task_id,
@@ -52,46 +95,62 @@ def fit_predict(
 
 
 def export_weak_supervision_stats(
-    project_id: str, labeling_task_id: str
+    project_id: str,
+    labeling_task_id: str,
+    overwrite_weak_supervision: Optional[Union[float, Dict[str, float]]] = None,
 ) -> Tuple[int, str]:
+    if overwrite_weak_supervision is not None:
+        ws_stats = __create_quality_metrics(
+            project_id, labeling_task_id, overwrite_weak_supervision
+        )
+    elif not record_label_association.is_any_record_manually_labeled(
+        project_id, labeling_task_id
+    ):
+        ws_stats = __create_quality_metrics(
+            project_id, labeling_task_id, NO_LABEL_WS_PRECISION
+        )
+    else:
+        task_type, df = collect_data(project_id, labeling_task_id, False)
+        try:
+            if task_type == enums.LabelingTaskType.CLASSIFICATION.value:
+                cnlm = util.get_cnlm_from_df(df)
+                stats_df = cnlm.quality_metrics()
+            elif task_type == enums.LabelingTaskType.INFORMATION_EXTRACTION.value:
+                enlm = util.get_enlm_from_df(df)
+                stats_df = enlm.quality_metrics()
+            else:
+                return 404, f"Task type {task_type} not implemented"
 
-    task_type, df = collect_data(project_id, labeling_task_id, False)
-    try:
-        if task_type == enums.LabelingTaskType.CLASSIFICATION.value:
-            cnlm = util.get_cnlm_from_df(df)
-            stats_df = cnlm.quality_metrics()
-        elif task_type == enums.LabelingTaskType.INFORMATION_EXTRACTION.value:
-            enlm = util.get_enlm_from_df(df)
-            stats_df = enlm.quality_metrics()
-        else:
-            return 404, f"Task type {task_type} not implemented"
+            if len(stats_df) != 0:
+                ws_stats = stats_df.set_index(["identifier", "label_name"]).to_dict(
+                    orient="index"
+                )
+            else:
+                return 404, "Can't compute weak supervision"
 
-        if len(stats_df) != 0:
-            stats_lkp = stats_df.set_index(["identifier", "label_name"]).to_dict(
-                orient="index"
-            )
-        else:
-            return 404, "Can't compute weak supervision"
+        except Exception:
+            print(traceback.format_exc(), flush=True)
+            general.rollback()
+            return 500, "Internal server error"
 
-        os.makedirs(os.path.join("/inference", project_id), exist_ok=True)
-        with open(
-            os.path.join(
-                "/inference", project_id, f"weak-supervision-{labeling_task_id}.pkl"
-            ),
-            "wb",
-        ) as f:
-            pickle.dump(stats_lkp, f)
+    os.makedirs(os.path.join("/inference", project_id), exist_ok=True)
+    with open(
+        os.path.join(
+            "/inference", project_id, f"weak-supervision-{labeling_task_id}.pkl"
+        ),
+        "wb",
+    ) as f:
+        pickle.dump(ws_stats, f)
 
-    except Exception:
-        print(traceback.format_exc(), flush=True)
-        general.rollback()
-        return 500, "Internal server error"
     return 200, "OK"
 
 
-def integrate_classification(df: pd.DataFrame):
+def integrate_classification(
+    df: pd.DataFrame,
+    quality_metrics_overwrite: Optional[Dict[Tuple[str, str], Dict[str, float]]] = None,
+):
     cnlm = util.get_cnlm_from_df(df)
-    weak_supervision_results = cnlm.weakly_supervise()
+    weak_supervision_results = cnlm.weakly_supervise(quality_metrics_overwrite)
     return_values = defaultdict(list)
     for record_id, (
         label_id,
@@ -103,9 +162,12 @@ def integrate_classification(df: pd.DataFrame):
     return return_values
 
 
-def integrate_extraction(df: pd.DataFrame):
+def integrate_extraction(
+    df: pd.DataFrame,
+    quality_metrics_overwrite: Optional[Dict[Tuple[str, str], Dict[str, float]]] = None,
+):
     enlm = util.get_enlm_from_df(df)
-    weak_supervision_results = enlm.weakly_supervise()
+    weak_supervision_results = enlm.weakly_supervise(quality_metrics_overwrite)
     return_values = defaultdict(list)
     for record_id, preds in weak_supervision_results.items():
         for pred in preds:
@@ -128,12 +190,12 @@ def collect_data(
 
     query_results = []
     if labeling_task_item.task_type == enums.LabelingTaskType.CLASSIFICATION.value:
-        for information_source in labeling_task_item.information_sources:
-            if only_selected and not information_source.is_selected:
+        for information_source_item in labeling_task_item.information_sources:
+            if only_selected and not information_source_item.is_selected:
                 continue
             results = (
                 record_label_association.get_all_classifications_for_information_source(
-                    project_id, information_source.id
+                    project_id, information_source_item.id
                 )
             )
             query_results.extend(results)
@@ -149,11 +211,11 @@ def collect_data(
         labeling_task_item.task_type
         == enums.LabelingTaskType.INFORMATION_EXTRACTION.value
     ):
-        for information_source in labeling_task_item.information_sources:
-            if only_selected and not information_source.is_selected:
+        for information_source_item in labeling_task_item.information_sources:
+            if only_selected and not information_source_item.is_selected:
                 continue
             results = record_label_association.get_all_extraction_tokens_for_information_source(
-                project_id, information_source.id
+                project_id, information_source_item.id
             )
             query_results.extend(results)
 
