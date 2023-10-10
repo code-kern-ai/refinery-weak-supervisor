@@ -29,7 +29,7 @@ def __create_quality_metrics(
     project_id: str,
     labeling_task_id: str,
     overwrite_weak_supervision: Union[float, Dict[str, float]],
-) -> Dict[Any, Any]:
+) -> Dict[Tuple[str, str], Dict[str, float]]:
     if isinstance(overwrite_weak_supervision, float):
         ws_weights = {}
         for heuristic_id in information_source.get_all_ids_by_labeling_task_id(
@@ -54,7 +54,7 @@ def fit_predict(
     labeling_task_id: str,
     user_id: str,
     weak_supervision_task_id: str,
-    overwrite_weak_supervision: Optional[Dict[Any, Any]] = None,
+    overwrite_weak_supervision: Optional[Union[float, Dict[str, float]]] = None,
 ):
     quality_metrics_overwrite = None
     if overwrite_weak_supervision is not None:
@@ -146,7 +146,8 @@ def export_weak_supervision_stats(
 
 
 def integrate_classification(
-    df: pd.DataFrame, quality_metrics_overwrite: Dict[Any, Any] = None
+    df: pd.DataFrame,
+    quality_metrics_overwrite: Optional[Dict[Tuple[str, str], Dict[str, float]]] = None,
 ):
     cnlm = util.get_cnlm_from_df(df)
     weak_supervision_results = cnlm.weakly_supervise(quality_metrics_overwrite)
@@ -162,7 +163,8 @@ def integrate_classification(
 
 
 def integrate_extraction(
-    df: pd.DataFrame, quality_metrics_overwrite: Dict[Any, Any] = None
+    df: pd.DataFrame,
+    quality_metrics_overwrite: Optional[Dict[Tuple[str, str], Dict[str, float]]] = None,
 ):
     enlm = util.get_enlm_from_df(df)
     weak_supervision_results = enlm.weakly_supervise(quality_metrics_overwrite)
