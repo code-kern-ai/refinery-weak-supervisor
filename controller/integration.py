@@ -69,6 +69,9 @@ def fit_predict(
         )
 
     task_type, df = collect_data(project_id, labeling_task_id, True)
+    if len(df.index) == 0:
+        #nothing to calculate no values are present (e.g. source run through but didn't hit anything)
+        return
     try:
         if task_type == enums.LabelingTaskType.CLASSIFICATION.value:
             results = integrate_classification(df, quality_metrics_overwrite)

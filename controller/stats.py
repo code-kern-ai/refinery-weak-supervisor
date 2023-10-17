@@ -146,6 +146,9 @@ def calculate_quantity_statistics_for_labeling_task_from_source(
     _, df = integration.collect_data(
         labeling_task_item.project_id, labeling_task_item.id, False
     )
+    if len(df.index) == 0:
+        #nothing to calculate if the source didn't hit anything
+        return
     if labeling_task_item.task_type == enums.LabelingTaskType.CLASSIFICATION.value:
         statistics = classification_quantity(df)
     else:
