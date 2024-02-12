@@ -2,9 +2,9 @@ from fastapi import FastAPI, HTTPException, responses, status
 from pydantic import BaseModel
 from typing import Union, Dict, Optional
 
+import submodules.model.business_objects.general as general
 from controller import stats
 from controller import integration
-from submodules.model.business_objects import general
 
 # API creation and description
 app = FastAPI()
