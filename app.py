@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, responses, status
+from fastapi import FastAPI, HTTPException, responses, status, Request
 from pydantic import BaseModel
 from typing import Union, Dict, Optional
 
@@ -36,11 +36,21 @@ class ExportWsStatsRequest(BaseModel):
     overwrite_weak_supervision: Optional[Union[float, Dict[str, float]]]
 
 
+@app.middleware("http")
+async def handle_db_session(request: Request, call_next):
+    session_token = general.get_ctx_token()
+    try:
+        response = await call_next(request)
+    finally:
+        general.remove_and_refresh_session(session_token)
+
+    return response
+
+
 @app.post("/fit_predict")
 def weakly_supervise(
     request: WeakSupervisionRequest,
 ) -> responses.PlainTextResponse:
-    session_token = general.get_ctx_token()
     integration.fit_predict(
         request.project_id,
         request.labeling_task_id,
@@ -48,7 +58,6 @@ def weakly_supervise(
         request.weak_supervision_task_id,
         request.overwrite_weak_supervision,
     )
-    general.remove_and_refresh_session(session_token)
     return responses.PlainTextResponse(status_code=status.HTTP_200_OK)
 
 
@@ -56,11 +65,9 @@ def weakly_supervise(
 def calculate_task_stats(
     request: TaskStatsRequest,
 ) -> responses.PlainTextResponse:
-    session_token = general.get_ctx_token()
     stats.calculate_quality_statistics_for_labeling_task(
         request.project_id, request.labeling_task_id, request.user_id
     )
-    general.remove_and_refresh_session(session_token)
     return responses.PlainTextResponse(status_code=status.HTTP_200_OK)
 
 
@@ -68,7 +75,6 @@ def calculate_task_stats(
 def calculate_source_stats(
     request: SourceStatsRequest,
 ) -> responses.PlainTextResponse:
-    session_token = general.get_ctx_token()
     has_coverage = stats.calculate_quantity_statistics_for_labeling_task_from_source(
         request.project_id, request.source_id, request.user_id
     )
@@ -76,17 +82,14 @@ def calculate_source_stats(
         stats.calculate_quality_statistics_for_source(
             request.project_id, request.source_id, request.user_id
         )
-    general.remove_and_refresh_session(session_token)
     return responses.PlainTextResponse(status_code=status.HTTP_200_OK)
 
 
 @app.post("/export_ws_stats")
 def export_ws_stats(request: ExportWsStatsRequest) -> responses.PlainTextResponse:
-    session_token = general.get_ctx_token()
     status_code, message = integration.export_weak_supervision_stats(
         request.project_id, request.labeling_task_id, request.overwrite_weak_supervision
     )
-    general.remove_and_refresh_session(session_token)
 
     if status_code != 200:
         raise HTTPException(status_code=status_code, detail=message)
