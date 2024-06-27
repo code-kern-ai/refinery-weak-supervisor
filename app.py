@@ -15,7 +15,7 @@ class WeakSupervisionRequest(BaseModel):
     labeling_task_id: str
     user_id: str
     weak_supervision_task_id: str
-    overwrite_weak_supervision: Optional[Union[float, Dict[str, float]]]
+    overwrite_weak_supervision: Optional[Union[float, Dict[str, float]]] = None
 
 
 class TaskStatsRequest(BaseModel):
@@ -33,7 +33,7 @@ class SourceStatsRequest(BaseModel):
 class ExportWsStatsRequest(BaseModel):
     project_id: str
     labeling_task_id: str
-    overwrite_weak_supervision: Optional[Union[float, Dict[str, float]]]
+    overwrite_weak_supervision: Optional[Union[float, Dict[str, float]]] = None
 
 
 @app.middleware("http")
