@@ -1,4 +1,20 @@
 #!/bin/bash
+
+DEBUG_MODE=false
+DEBUG_PORT=15677
+
+while getopts d flag
+do
+    case "${flag}" in
+        d) DEBUG_MODE=true;;
+    esac
+done
+
+CMD=""
+if [ $DEBUG_MODE = true ]; then
+    CMD="debugpy --wait-for-client --listen 0.0.0.0:$DEBUG_PORT -m uvicorn app:app --host 0.0.0.0 --port 80 --reload"
+fi
+
 trap "echo -ne '\nstopping container...' && docker stop refinery-weak-supervisor > /dev/null 2>&1 && echo -ne '\t\t [done]\n'" EXIT
 
 echo -ne 'stopping old container...'
@@ -26,6 +42,7 @@ echo -ne '\t\t [done]\n'
 echo -ne 'starting...'
 docker run -d --rm \
 --name refinery-weak-supervisor \
+-p $DEBUG_PORT:$DEBUG_PORT \
 -p 7054:80 \
 -e POSTGRES=postgresql://postgres:kern@graphql-postgres:5432 \
 -e WS_NOTIFY_ENDPOINT="http://refinery-websocket:8080" \
@@ -33,7 +50,10 @@ docker run -d --rm \
 -v /var/run/docker.sock:/var/run/docker.sock \
 -v "$INFERENCE_DIR":/inference \
 --network dev-setup_default \
-refinery-weak-supervisor-dev > /dev/null 2>&1
+refinery-weak-supervisor-dev $CMD > /dev/null 2>&1
 echo -ne '\t\t\t [done]\n'
 
+if [ $DEBUG_MODE = true ]; then
+    echo -e "\033[0;33muse VSCode Debugger (Python Debugger: refinery-weak-supervisor) to start the service\033[0m"
+fi
 docker logs -f refinery-weak-supervisor
