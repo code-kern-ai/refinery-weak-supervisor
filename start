@@ -36,7 +36,7 @@ then
 fi
 
 echo -ne 'building container...'
-docker build -t refinery-weak-supervisor-dev -f dev.Dockerfile . > /dev/null 2>&1
+docker build -t refinery-weak-supervisor-dev -f dev.Dockerfile .
 echo -ne '\t\t [done]\n'
 
 echo -ne 'starting...'
