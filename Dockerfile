@@ -1,5 +1,5 @@
 
-FROM kernai/refinery-parent-images:python-upgrade-common
+FROM kernai/refinery-parent-images:python-upgrade-upgrade-common
 
 WORKDIR /program
 
