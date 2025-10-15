@@ -53,8 +53,6 @@ docker run -d --rm \
 -v /var/run/docker.sock:/var/run/docker.sock \
 -v "$INFERENCE_DIR":/inference \
 --network dev-setup_default \
---log-driver=loki \
---log-opt loki-url="http://$HOST_IP:3100/loki/api/v1/push" \
 refinery-weak-supervisor-dev $CMD > /dev/null 2>&1
 echo -ne '\t\t\t [done]\n'
 
