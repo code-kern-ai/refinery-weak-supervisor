@@ -1,3 +1,5 @@
+import os
+import logging
 from fastapi import FastAPI, HTTPException, responses, status, Request
 from pydantic import BaseModel
 from typing import Union, Dict, Optional
@@ -5,9 +7,25 @@ from typing import Union, Dict, Optional
 import submodules.model.business_objects.general as general
 from controller import stats
 from controller import integration
+from submodules.model import telemetry
 
-# API creation and description
-app = FastAPI()
+
+OTLP_GRPC_ENDPOINT = os.getenv("OTLP_GRPC_ENDPOINT", "tempo:4317")
+
+app_name = "refinery-weak-supervisor"
+app = FastAPI(title=app_name)
+
+if telemetry.ENABLE_TELEMETRY:
+    print("WARNING:  Running telemetry.", flush=True)
+    telemetry.setting_app_name(app_name)
+    telemetry.setting_otlp(app, app_name=app_name, endpoint=OTLP_GRPC_ENDPOINT)
+    app.add_middleware(telemetry.PrometheusMiddleware, app_name=app_name)
+    app.add_route("/metrics", telemetry.metrics)
+
+    # Filter out /metrics
+    logging.getLogger("uvicorn.access").addFilter(
+        lambda record: "GET /metrics" not in record.getMessage()
+    )
 
 
 class WeakSupervisionRequest(BaseModel):
