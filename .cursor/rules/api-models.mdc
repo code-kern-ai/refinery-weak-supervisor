@@ -1,0 +1,104 @@
+---
+description: Rules for Pydantic models and request/response validation
+globs: ["app.py"]
+alwaysApply: true
+---
+
+# API Models Guidelines
+
+Pydantic models validate request bodies and ensure type safety. Models are defined directly in `app.py`.
+
+## Model Definition
+
+**Basic structure:**
+```python
+from pydantic import BaseModel
+from typing import Union, Dict, Optional
+
+class WeakSupervisionRequest(BaseModel):
+    project_id: str
+    labeling_task_id: str
+    user_id: str
+    weak_supervision_task_id: str
+    overwrite_weak_supervision: Optional[Union[float, Dict[str, float]]] = None
+
+class TaskStatsRequest(BaseModel):
+    project_id: str
+    labeling_task_id: str
+    user_id: str
+
+class SourceStatsRequest(BaseModel):
+    project_id: str
+    source_id: str
+    user_id: str
+
+class ExportWsStatsRequest(BaseModel):
+    project_id: str
+    labeling_task_id: str
+    overwrite_weak_supervision: Optional[Union[float, Dict[str, float]]] = None
+```
+
+## Naming Conventions
+
+- Request bodies: `WeakSupervisionRequest`, `TaskStatsRequest`, `SourceStatsRequest`
+- Use descriptive names ending in `Request`
+- Match the endpoint purpose (e.g., `WeakSupervisionRequest` for `/fit_predict`)
+
+## Usage in Routes
+
+```python
+from app import WeakSupervisionRequest
+
+@app.post("/fit_predict")
+def weakly_supervise(request: WeakSupervisionRequest) -> responses.PlainTextResponse:
+    integration.fit_predict(
+        request.project_id,
+        request.labeling_task_id,
+        request.user_id,
+        request.weak_supervision_task_id,
+        request.overwrite_weak_supervision,
+    )
+    return responses.PlainTextResponse(status_code=status.HTTP_200_OK)
+```
+
+## Field Validation
+
+```python
+from pydantic import field_validator, Field
+
+class WeakSupervisionRequest(BaseModel):
+    project_id: str = Field(..., min_length=1)
+    labeling_task_id: str = Field(..., min_length=1)
+    user_id: str = Field(..., min_length=1)
+    weak_supervision_task_id: str = Field(..., min_length=1)
+    overwrite_weak_supervision: Optional[Union[float, Dict[str, float]]] = None
+    
+    @field_validator('project_id', 'labeling_task_id', 'user_id', 'weak_supervision_task_id')
+    @classmethod
+    def validate_ids(cls, v):
+        if not v or not v.strip():
+            raise ValueError('ID cannot be empty')
+        return v.strip()
+```
+
+## Optional Fields with Complex Types
+
+```python
+from typing import Union, Dict, Optional
+
+class WeakSupervisionRequest(BaseModel):
+    # Optional field that can be a float or a dict
+    overwrite_weak_supervision: Optional[Union[float, Dict[str, float]]] = None
+```
+
+## Best Practices
+
+1. Use standard Python types (`str`, `int`, `float`) - FastAPI handles validation
+2. Use `Optional` for fields that may not be provided
+3. Use `Union` for fields that can accept multiple types
+4. Provide defaults for optional fields (use `None` for optional values)
+5. Use descriptive model names ending in `Request`
+6. Use `Field(...)` for required fields with constraints
+7. Use field validators for custom validation logic
+8. Keep models simple and focused on request structure
+9. Define models in `app.py` near the routes that use them

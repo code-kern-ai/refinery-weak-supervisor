@@ -1,0 +1,114 @@
+---
+description: Rules for working with Git submodules (model)
+alwaysApply: true
+---
+
+# Submodules Guidelines
+
+## Critical Rule
+
+**BEFORE modifying code in `submodules/`, check the submodule's `.cursor/rules/` directory first.**
+
+- `submodules/model/.cursor/rules/` - Database models, business objects, enums, database operations
+
+Do NOT duplicate submodule rules in parent repository rules.
+
+## Import Patterns
+
+**From model submodule:**
+```python
+# Business objects
+from submodules.model.business_objects import (
+    general,
+    labeling_task,
+    record_label_association,
+    weak_supervision,
+    labeling_task_label,
+    information_source,
+    notification,
+    project,
+    user,
+)
+
+# Models
+from submodules.model.models import (
+    LabelingTask,
+    LabelingTaskLabel,
+    RecordLabelAssociation,
+    RecordLabelAssociationToken,
+)
+
+# Enums and utilities
+from submodules.model import enums, telemetry
+from submodules.model.exceptions import EntityNotFoundException
+from submodules.model.util import sql_alchemy_to_dict
+```
+
+## When to Modify Submodules
+
+**Modify when**: Adding data layer logic, new database operations related to weak supervision.
+
+**Don't modify when**: Change belongs in service code (routes/controllers), just using existing functionality.
+
+## Database Schema Changes
+
+**When adding new tables or columns** in `submodules/model`:
+
+1. Make changes in `submodules/model/models.py` (add entity class or modify columns)
+2. Update `submodules/model/enums.py` if adding a new table (add to `Tablenames` enum)
+3. Create migration: `./db commit "Description of changes"` (must be run from `refinery-gateway` root)
+4. Apply migration: `./db migrate` (must be run from `refinery-gateway` root)
+
+**Important**: Database migrations MUST be done only from `refinery-gateway` root directory, not from within the submodule.
+
+**This is mandatory** - schema changes require both `commit` and `migrate` steps. See `submodules/model/.cursor/rules/entities.mdc` for detailed migration guidelines.
+
+## Common Patterns
+
+```python
+# Weak supervision operations
+weak_supervision.store_data(
+    project_id,
+    labeling_task_id,
+    user_id,
+    results,
+    task_type,
+    weak_supervision_task_id,
+    with_commit=True,
+)
+
+weak_supervision.update_state(
+    project_id,
+    weak_supervision_task_id,
+    enums.PayloadState.FAILED.value,
+    with_commit=True,
+)
+
+# Labeling task operations
+labeling_task_item = labeling_task.get(project_id, labeling_task_id)
+labeling_task_item = labeling_task.get_labeling_task_by_id_only(task_id)
+labeling_task_item = labeling_task.get_labeling_task_by_source_id(source_id)
+
+# Record label associations
+results = record_label_association.get_all_classifications_for_information_source(
+    project_id, information_source_item.id
+)
+results = record_label_association.get_all_extraction_tokens_for_information_source(
+    project_id, information_source_item.id
+)
+
+# Information source operations
+information_source.update_quality_stats(
+    project_id, source_id, statistics_item, with_commit=True
+)
+information_source.update_quantity_stats(
+    project_id, source_id, statistics_item, with_commit=True
+)
+
+# General database operations
+general.get_ctx_token()
+general.remove_and_refresh_session(session_token)
+general.rollback()
+general.commit()
+general.test_database_connection()
+```
