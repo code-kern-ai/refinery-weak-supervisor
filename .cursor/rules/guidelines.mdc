@@ -1,0 +1,75 @@
+---
+description: Main guidelines and architecture overview for refinery-weak-supervisor
+alwaysApply: true
+---
+
+# Refinery Weak Supervisor Guidelines
+
+Microservice guidelines ensuring consistency across API routes, controllers, and related code for the weak supervision service.
+
+## Overview
+
+The `refinery-weak-supervisor` is a FastAPI-based microservice that manages weak supervision for the Refinery platform. It handles the integration of heuristics such as labeling functions, active learners, or zero-shot classifiers using the [`weak-nlp`](https://github.com/code-kern-ai/weak-nlp) library for the actual integration logic and algorithms.
+
+## Architecture
+
+The service follows a simple microservice architecture:
+
+- **FastAPI App** (`app.py`): Main application file with route definitions and middleware
+- **Controllers** (`controller/`): Business logic layer for weak supervision integration and statistics
+- **Submodules** (`submodules/model/`): Shared database models and business objects
+- **Pydantic Models** (`app.py`): Request/response validation models defined inline
+
+## Guideline Files
+
+- **[submodules.mdc](./submodules.mdc)** - Rules for working with submodules
+- **[fastapi-routes.mdc](./fastapi-routes.mdc)** - Rules for FastAPI route definitions
+- **[controllers.mdc](./controllers.mdc)** - Rules for controller modules and business logic
+- **[middleware.mdc](./middleware.mdc)** - Rules for middleware and request processing
+- **[exceptions.mdc](./exceptions.mdc)** - Rules for exception handling
+- **[api-models.mdc](./api-models.mdc)** - Rules for Pydantic models and request/response validation
+- **[utilities.mdc](./utilities.mdc)** - Rules for utility functions and helpers
+
+## General Principles
+
+1. **Separation of Concerns**: Routes handle HTTP, controllers contain business logic, submodules handle data access
+2. **Type Safety**: Use type hints consistently, leverage Pydantic for validation
+3. **Consistency**: Follow established naming conventions and patterns
+4. **Error Handling**: Use appropriate HTTP status codes and consistent error responses
+5. **Submodule Integration**: Always check submodule rules before making changes to submodule code
+6. **Microservice Focus**: Keep the service focused on weak supervision operations
+
+## Directory Structure
+
+```
+refinery-weak-supervisor/
+├── app.py                 # FastAPI application with routes and middleware
+├── controller/            # Business logic layer
+│   ├── integration.py    # Weak supervision integration logic
+│   ├── stats.py          # Statistics calculation
+│   └── util.py           # Controller utilities
+├── submodules/            # Git submodules
+│   └── model/             # Database models and business objects
+├── tests/                 # Test files
+│   └── test_app.py       # Application tests
+├── requirements.txt      # Python dependencies
+└── Dockerfile            # Container definition
+```
+
+## Service Endpoints
+
+- `POST /fit_predict` - Run weak supervision on a labeling task
+- `POST /labeling_task_statistics` - Calculate quality statistics for a labeling task
+- `POST /source_statistics` - Calculate statistics for an information source
+- `POST /export_ws_stats` - Export weak supervision statistics
+- `GET /healthcheck` - Health check endpoint
+
+## Quick Reference
+
+**Response Patterns**: Use `responses.PlainTextResponse()` for simple responses. Return appropriate HTTP status codes.
+
+**Database**: Sessions managed by middleware in `app.py`. Use submodule business objects, never create SQLAlchemy sessions directly.
+
+**Error Handling**: Use `HTTPException` for error responses. Handle exceptions in controllers and return appropriate status codes.
+
+**Submodules**: Always check `submodules/{name}/.cursor/rules/` before modifying submodule code.

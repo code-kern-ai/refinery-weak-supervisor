@@ -1,0 +1,78 @@
+---
+description: Rules for middleware and request processing
+globs: ["app.py"]
+alwaysApply: true
+---
+
+# Middleware Guidelines
+
+Middleware handles cross-cutting concerns: database sessions and request processing.
+
+## Database Session Management
+
+Sessions are managed automatically by middleware defined in `app.py`. Never create SQLAlchemy sessions directly.
+
+**Middleware Pattern:**
+```python
+import submodules.model.business_objects.general as general
+
+@app.middleware("http")
+async def handle_db_session(request: Request, call_next):
+    session_token = general.get_ctx_token()
+    try:
+        response = await call_next(request)
+    finally:
+        general.remove_and_refresh_session(session_token)
+    return response
+```
+
+## Session Token Management
+
+The middleware uses context tokens to manage database sessions:
+
+```python
+# Get session token at start of request
+session_token = general.get_ctx_token()
+
+# Always cleanup in finally block
+finally:
+    general.remove_and_refresh_session(session_token)
+```
+
+## Error Handling
+
+Middleware should let exceptions propagate naturally. Controllers handle business logic errors:
+
+```python
+@app.middleware("http")
+async def handle_db_session(request: Request, call_next):
+    session_token = general.get_ctx_token()
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        # Always cleanup session, even if exception occurred
+        general.remove_and_refresh_session(session_token)
+```
+
+## Telemetry Middleware (Optional)
+
+If telemetry is enabled, middleware is added automatically:
+
+```python
+from submodules.model import telemetry
+
+if telemetry.ENABLE_TELEMETRY:
+    telemetry.setting_app_name(app_name)
+    telemetry.setting_otlp(app, app_name=app_name, endpoint=OTLP_GRPC_ENDPOINT)
+    app.add_middleware(telemetry.PrometheusMiddleware, app_name=app_name)
+```
+
+## Best Practices
+
+1. Never create SQLAlchemy sessions directly - use `general.get_ctx_token()` and `general.remove_and_refresh_session()`
+2. Always cleanup resources in `finally` blocks
+3. Keep middleware lightweight - move heavy operations to controllers
+4. Let exceptions propagate - don't catch them in middleware unless necessary
+5. Use session tokens to track database sessions across request lifecycle
+6. Ensure session cleanup happens even when exceptions occur

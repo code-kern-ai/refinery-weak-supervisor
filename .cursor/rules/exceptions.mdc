@@ -1,0 +1,110 @@
+---
+description: Rules for exception handling and custom exceptions
+globs: ["**/*.py"]
+alwaysApply: true
+---
+
+# Exceptions Guidelines
+
+## Exception Locations
+
+**Submodule exceptions:**
+```python
+from submodules.model.exceptions import EntityNotFoundException, EntityAlreadyExistsException
+```
+
+**External library exceptions:**
+```python
+import weak_nlp
+# weak_nlp.shared.exceptions.MissingReferenceException
+```
+
+**FastAPI exceptions:**
+```python
+from fastapi import HTTPException
+```
+
+## Usage Patterns
+
+**Raising HTTP exceptions in routes:**
+```python
+from fastapi import HTTPException
+
+@app.post("/export_ws_stats")
+def export_ws_stats(request: ExportWsStatsRequest) -> responses.PlainTextResponse:
+    status_code, message = integration.export_weak_supervision_stats(...)
+    
+    if status_code != 200:
+        raise HTTPException(status_code=status_code, detail=message)
+    return responses.PlainTextResponse(status_code=status_code)
+```
+
+**Handling exceptions in controllers:**
+```python
+import traceback
+from submodules.model.business_objects import general, weak_supervision
+from submodules.model import enums
+
+try:
+    # Business logic
+    results = integrate_classification(df, quality_metrics_overwrite)
+    weak_supervision.store_data(...)
+except Exception:
+    print(traceback.format_exc(), flush=True)
+    general.rollback()
+    weak_supervision.update_state(
+        project_id,
+        weak_supervision_task_id,
+        enums.PayloadState.FAILED.value,
+        with_commit=True,
+    )
+```
+
+**Handling specific exceptions:**
+```python
+import weak_nlp
+
+try:
+    statistics = classification_quality(df)
+    # Process statistics
+except weak_nlp.shared.exceptions.MissingReferenceException:
+    send_warning_no_reference_data(project_id, user_id)
+```
+
+## HTTP Status Code Mapping
+
+- `200`: Success
+- `404`: Not found (e.g., task type not implemented, can't compute statistics)
+- `500`: Internal server error (unexpected exceptions)
+
+## Error Response Patterns
+
+**Return status codes from controllers:**
+```python
+def export_weak_supervision_stats(...) -> Tuple[int, str]:
+    try:
+        # Process
+        return 200, "OK"
+    except Exception:
+        print(traceback.format_exc(), flush=True)
+        general.rollback()
+        return 500, "Internal server error"
+```
+
+**Raise HTTPException in routes:**
+```python
+status_code, message = integration.export_weak_supervision_stats(...)
+if status_code != 200:
+    raise HTTPException(status_code=status_code, detail=message)
+```
+
+## Best Practices
+
+1. Use `HTTPException` for HTTP-level errors in routes
+2. Return `(status_code, message)` tuples from controllers for status reporting
+3. Provide clear error messages with context
+4. Print tracebacks with `flush=True` for proper logging in controllers
+5. Always rollback database transactions on exceptions
+6. Update task state to FAILED when operations fail
+7. Handle specific exceptions (like `MissingReferenceException`) appropriately
+8. Don't swallow exceptions silently - log or handle them explicitly

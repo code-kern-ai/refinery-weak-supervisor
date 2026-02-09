@@ -1,0 +1,107 @@
+---
+description: Rules for FastAPI route definitions and HTTP handling
+globs: ["app.py"]
+alwaysApply: true
+---
+
+# FastAPI Routes Guidelines
+
+Routes handle HTTP request/response logic. Keep routes thin - validate input, call controllers, format responses.
+
+## Route Structure
+
+Routes are defined directly in `app.py` using the FastAPI app instance:
+
+```python
+from fastapi import FastAPI, HTTPException, responses, status
+from pydantic import BaseModel
+from controller import integration, stats
+
+app = FastAPI(title="refinery-weak-supervisor")
+
+@app.post("/fit_predict")
+def weakly_supervise(request: WeakSupervisionRequest) -> responses.PlainTextResponse:
+    integration.fit_predict(
+        request.project_id,
+        request.labeling_task_id,
+        request.user_id,
+        request.weak_supervision_task_id,
+        request.overwrite_weak_supervision,
+    )
+    return responses.PlainTextResponse(status_code=status.HTTP_200_OK)
+```
+
+## Response Patterns
+
+```python
+# Success response
+return responses.PlainTextResponse(status_code=status.HTTP_200_OK)
+
+# Error handling
+from fastapi import HTTPException
+
+@app.post("/export_ws_stats")
+def export_ws_stats(request: ExportWsStatsRequest) -> responses.PlainTextResponse:
+    status_code, message = integration.export_weak_supervision_stats(
+        request.project_id, request.labeling_task_id, request.overwrite_weak_supervision
+    )
+    
+    if status_code != 200:
+        raise HTTPException(status_code=status_code, detail=message)
+    return responses.PlainTextResponse(status_code=status_code)
+```
+
+## Request Body Models
+
+Define Pydantic models in `app.py` for request validation:
+
+```python
+from pydantic import BaseModel
+from typing import Union, Dict, Optional
+
+class WeakSupervisionRequest(BaseModel):
+    project_id: str
+    labeling_task_id: str
+    user_id: str
+    weak_supervision_task_id: str
+    overwrite_weak_supervision: Optional[Union[float, Dict[str, float]]] = None
+```
+
+## Health Check Pattern
+
+```python
+@app.get("/healthcheck")
+def healthcheck() -> responses.PlainTextResponse:
+    text = ""
+    status_code = status.HTTP_200_OK
+    database_test = general.test_database_connection()
+    if not database_test.get("success"):
+        error_name = database_test.get("error")
+        text += f"database_error:{error_name}:"
+        status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    if not text:
+        text = "OK"
+    return responses.PlainTextResponse(text, status_code=status_code)
+```
+
+## Error Handling
+
+```python
+# Use HTTPException for client errors
+if status_code != 200:
+    raise HTTPException(status_code=status_code, detail=message)
+
+# Let exceptions propagate for server errors (middleware handles them)
+# Controllers should handle business logic errors and return status codes
+```
+
+## Best Practices
+
+1. Keep routes thin - delegate to controllers
+2. Use Pydantic models for request validation
+3. Return `PlainTextResponse` for simple responses
+4. Use appropriate HTTP status codes
+5. Use type hints for all parameters and return types
+6. Handle exceptions appropriately - raise `HTTPException` for client errors
+7. Use descriptive endpoint names: `/fit_predict`, `/labeling_task_statistics`
+8. Keep route handlers focused on HTTP concerns only
