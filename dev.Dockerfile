@@ -1,8 +1,11 @@
-FROM kernai/refinery-parent-images:v2.5.0-common
+ARG PARENT_IMAGE=registry.dev.kern.ai/code-kern-ai/refinery-parent-images:dev-common
+FROM ${PARENT_IMAGE}
 
 WORKDIR /app
 
 VOLUME ["/app"]
+
+USER root
 
 COPY requirements*.txt .
 
@@ -13,4 +16,6 @@ COPY / .
 # to run with local version of weak-nlp, clone the weak-nlp repo inside and uncomment
 # RUN pip3 install -e weak-nlp
 
-CMD [ "/usr/local/bin/uvicorn", "--host", "0.0.0.0", "--port", "80", "app:app", "--reload" ]
+USER 65532:65532
+
+CMD ["/usr/local/bin/uvicorn", "--host", "0.0.0.0", "--port", "80", "app:app", "--reload"]
