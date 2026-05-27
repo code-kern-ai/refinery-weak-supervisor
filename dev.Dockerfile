@@ -16,6 +16,4 @@ COPY / .
 # to run with local version of weak-nlp, clone the weak-nlp repo inside and uncomment
 # RUN pip3 install -e weak-nlp
 
-USER 65532:65532
-
 CMD ["/usr/local/bin/uvicorn", "--host", "0.0.0.0", "--port", "80", "app:app", "--reload"]
