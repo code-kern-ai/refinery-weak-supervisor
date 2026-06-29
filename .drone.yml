@@ -12,8 +12,6 @@ steps:
       - git submodule init
       - 'git config --global url."https://github.com/".insteadOf git@github.com:'
       - "git submodule update --recursive"
-      - BRANCH_TAG=$(echo "${DRONE_COMMIT_BRANCH}" | tr '/' '-')
-      - echo -n "${DRONE_COMMIT_SHA},${BRANCH_TAG}" > .tags
   - name: build and publish
     image: plugins/docker:21
     environment:
@@ -33,8 +31,10 @@ steps:
       password:
         from_secret: docker_password
       repo: "registry.dev.kern.ai/${DRONE_REPO}"
+      tags: ["${DRONE_COMMIT_SHA}", "${DRONE_COMMIT_BRANCH}"]
       cache_from:
         - "registry.dev.kern.ai/${DRONE_REPO}:dev"
+        - "registry.dev.kern.ai/${DRONE_REPO}:${DRONE_COMMIT_BRANCH}"
 
 trigger:
   event:
@@ -84,8 +84,6 @@ steps:
       - git submodule init
       - 'git config --global url."https://github.com/".insteadOf git@github.com:'
       - "git submodule update --recursive"
-      - BRANCH_TAG=$(echo "${DRONE_COMMIT_BRANCH}" | tr '/' '-')
-      - echo -n "${DRONE_COMMIT_SHA}_arm64,${BRANCH_TAG}_arm64" > .tags
   - name: build and publish
     image: plugins/docker:21
     environment:
@@ -105,8 +103,10 @@ steps:
       password:
         from_secret: docker_password
       repo: "registry.dev.kern.ai/${DRONE_REPO}"
+      tags: ["${DRONE_COMMIT_SHA}_arm64", "${DRONE_COMMIT_BRANCH}_arm64"]
       cache_from:
         - "registry.dev.kern.ai/${DRONE_REPO}:dev_arm64"
+        - "registry.dev.kern.ai/${DRONE_REPO}:${DRONE_COMMIT_BRANCH}_arm64"
 
 trigger:
   branch:
