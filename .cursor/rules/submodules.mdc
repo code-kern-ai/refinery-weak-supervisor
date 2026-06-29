@@ -5,6 +5,10 @@ alwaysApply: true
 
 # Submodules Guidelines
 
+## Vendored packages (not submodules)
+
+`packages/weak-nlp/` contains the weak supervision library vendored from the archived [weak-nlp](https://github.com/code-kern-ai/weak-nlp) repo. It is installed as a local editable dependency (`pip install -e ./packages/weak-nlp`), not managed as a git submodule.
+
 ## Critical Rule
 
 **BEFORE modifying code in `submodules/`, check the submodule's `.cursor/rules/` directory first.**

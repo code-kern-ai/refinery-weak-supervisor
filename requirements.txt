@@ -226,7 +226,7 @@ urllib3==2.7.0
     #   requests
 uvicorn==0.35.0
     # via -r requirements/common-requirements.txt
-weak-nlp==0.0.13
+-e ./packages/weak-nlp
     # via -r requirements/requirements.in
 wrapt==1.17.3
     # via

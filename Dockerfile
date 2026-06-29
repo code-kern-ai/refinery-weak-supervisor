@@ -13,6 +13,7 @@ WORKDIR /program
 COPY --from=venv-source ${VENV_PATH} ${VENV_PATH}
 
 COPY requirements.txt .
+COPY packages/weak-nlp ./packages/weak-nlp
 
 RUN pip3 install --no-cache-dir -r requirements.txt
 

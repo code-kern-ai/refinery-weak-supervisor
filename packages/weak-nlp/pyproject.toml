@@ -1,0 +1,13 @@
+[project]
+name = "weak-nlp"
+version = "0.0.13"
+description = "Intelligent information integration based on weak supervision"
+requires-python = ">=3.11"
+dependencies = ["numpy", "pandas"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
