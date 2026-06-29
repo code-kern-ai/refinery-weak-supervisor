@@ -9,7 +9,7 @@ Microservice guidelines ensuring consistency across API routes, controllers, and
 
 ## Overview
 
-The `refinery-weak-supervisor` is a FastAPI-based microservice that manages weak supervision for the Refinery platform. It handles the integration of heuristics such as labeling functions, active learners, or zero-shot classifiers using the [`weak-nlp`](https://github.com/code-kern-ai/weak-nlp) library for the actual integration logic and algorithms.
+The `refinery-weak-supervisor` is a FastAPI-based microservice that manages weak supervision for the Refinery platform. It handles the integration of heuristics such as labeling functions, active learners, or zero-shot classifiers using the vendored `weak-nlp` package in [`packages/weak-nlp/`](packages/weak-nlp/) for the actual integration logic and algorithms.
 
 ## Architecture
 
@@ -18,6 +18,7 @@ The service follows a simple microservice architecture:
 - **FastAPI App** (`app.py`): Main application file with route definitions and middleware
 - **Controllers** (`controller/`): Business logic layer for weak supervision integration and statistics
 - **Submodules** (`submodules/model/`): Shared database models and business objects
+- **Vendored packages** (`packages/weak-nlp/`): Weak supervision algorithms (CNLM/ENLM)
 - **Pydantic Models** (`app.py`): Request/response validation models defined inline
 
 ## Guideline Files
